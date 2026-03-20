@@ -179,7 +179,7 @@ _ආයුබෝවන්! 👋_
         }
 
         if (state.step === 'REPORT_VERIFY') {
-            if (body.trim() === state.data.id || body.trim().toLowerCase() === state.data.prefect_id?.toLowerCase()) {
+            if (body.trim() === state.data.id || body.trim().toLowerCase() === String(state.data.prefect_unique_id || '').trim().toLowerCase()) {
                 const monthsList = [];
                 let listMsg = `*A C C E S S  G R A N T E D !* 🛡️✅\n\nආයුබෝවන් *${state.data.name.split(' ')[0]}* !\nඔබගේ අනන්‍යතාව 100% ක් තහවුරුයි. 🎉\n\nකරුණාකර ඔබගේ මාසික වාර්තාව (PDF) මුද්‍රණය කිරීමට අදාළ මාසයට හිමි අංකය පහතින් තෝරන්න:\n\n╭───────────────────✨\n│ 📊 *E C C P M S  R E P O R T S*\n╰───────────────────✨\n\n`;
                 for (let i = 0; i < 4; i++) {
