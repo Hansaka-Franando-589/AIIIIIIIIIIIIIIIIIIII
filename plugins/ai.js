@@ -63,20 +63,6 @@ async (hansaka, mek, m, { from, body, isGroup, senderNumber }) => {
     try {
         if (isGroup) return; 
 
-        const generateOlyaDynamicMsg = async (promptMsg) => {
-            try {
-                const genAI = getRandomGeminiMode();
-                if (!genAI) return "පැහැදිලි නැත. කරුණාකර නැවත උත්සාහ කරන්න.";
-                const geminiModel = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
-                const baseContext = `You are Olya, the highly professional Personal Assistant to the CEO, Hansaka. You are speaking to Rashmi, his VIP partner. Do NOT sound robotic or artificial. Speak completely like a real, polite human assistant named Olya. Use natural, conversational Sinhala script. Keep it extremely brief. IMPORTANT: `;
-                const result = await geminiModel.generateContent([baseContext + promptMsg]);
-                return result.response.text().trim() + "\n\n> 𝓐𝓼𝓼𝓲𝓼𝓽𝓪𝓷𝓽 𝓞𝓵𝔂𝓪 💞🐝";
-            } catch (error) {
-                console.error("Dynamic AI Gen Error:", error.message);
-                return "පද්ධති දෝෂයකි. කරුණාකර නැවත උත්සාහ කරන්න.\n\n> 𝓐𝓼𝓼𝓲𝓼𝓽𝓪𝓷𝓽 𝓞𝓵𝔂𝓪 💞🐝";
-            }
-        };
-
         const isOwner = senderNumber === OWNER_NUMBER || mek.key.fromMe;
         const userProfile = VIP_DIRECTORY[senderNumber];
 
@@ -155,14 +141,18 @@ async (hansaka, mek, m, { from, body, isGroup, senderNumber }) => {
         // 6. FULL ECCPMS PDF GENERATION 
         // ========================================================
         if (state.step === 'NORMAL' && body && /(රිපෝට්|report|වාර්තාව|ප්‍රිෆෙක්ට්|මාසික|eccpms|monthly|prefect|pms|pdf)/i.test(body) && isNaN(body.trim())) {
-            await hansaka.sendPresenceUpdate('composing', from);
-            if (userProfile?.role === 'Special Someone') {
-                const aiReply = await generateOlyaDynamicMsg("Address her as 'චූටි මිස්'. Tell her naturally that Hansaka asked you to do her work first, and ask completely like a human assistant 'චූටි මිස්, මට ඔයාගේ ඉන්ඩෙක්ස් නම්බර් එක දෙනවද?', mentioning report generation. Do NOT use artificial words.");
-                return await hansaka.sendMessage(from, { text: aiReply }, { quoted: mek });
-            } else {
-                const aiReply = await generateOlyaDynamicMsg("A user is requesting their monthly PDF report. Act entirely like a highly professional corporate secretary. Naturally say something like 'ආයුබෝවන්! මම මාසික වාර්තාව ලබාගන්න පද්ධතියට සම්බන්ධ වෙන්නම්. කරුණාකර ඔබගේ ඇතුළත් වීමේ අංකය (Index Number) ලබාදෙන්න පුළුවන්ද?'. Keep it extremely polite, formal yet natural. DO NOT sound robotic or use formatting templates.");
-                return await hansaka.sendMessage(from, { text: aiReply }, { quoted: mek });
-            }
+            const replyMsg = `*📋 ECCPMS | Prefect Management System*
+
+_ආයුබෝවන්! 👋_
+
+මේ වන විට මා විසින් PMS Data System එක වෙත පිවිසීමට අවශ්‍ය කටයුතු සූදානම් කරමිනුයි පවතින්නේ.
+
+ඔබගේ Monthly Performance Report (PDF) එක ලබා ගැනීම සඳහා, කරුණාකර ඔයාගේ Index Number (ඇතුලත් වීමේ අංකය) පමණක් මීළඟ message එකෙහි සටහන් කර එවන්න.
+
+(පද්ධතියේ පහසුව සඳහා වෙනත් කිසිදු වචනයක් භාවිතා නොකර අංකය පමණක් යොමු කිරීමට කාරුණික වන්න.)
+
+*📌 උදාහරණ: 27137*`;
+            return await hansaka.sendMessage(from, { text: replyMsg + "\n\n> 𝓐𝓼𝓼𝓲𝓼𝓽𝓪𝓷𝓽 𝓞𝓵𝔂𝓪 💞🐝" }, { quoted: mek });
         }
 
         if (state.step === 'NORMAL' && !body.includes(' ') && body.trim().length >= 3 && body.trim().length <= 15 && !isNaN(body.trim())) {
@@ -170,6 +160,298 @@ async (hansaka, mek, m, { from, body, isGroup, senderNumber }) => {
                 return await hansaka.sendMessage(from, { text: "⚠️ ECCPMS පද්ධතිය මේ වෙලාවේ offline. කරුණාකර ටික වෙලාවකින් නැවත උත්සාහ කරන්න.\n\n- Olya" + "\n\n> 𝓐𝓼𝓼𝓲𝓼𝓽𝓪𝓷𝓽 𝓞𝓵𝔂𝓪 💞🐝" }, { quoted: mek });
             }
             const inputId = body.trim();
+            
+            let vMsg = await hansaka.sendMessage(from, { text: "> 🔍 _Olya System is Scanning Index..._" }, { quoted: mek });
+            await sleep(2000);
+            await hansaka.sendMessage(from, { text: "> 🛡️ _Authenticating with ECCPMS Secure Server..._", edit: vMsg.key });
+            await sleep(2000);
+            await hansaka.sendMessage(from, { text: "> 📂 _Querying Prefect Identity Database..._", edit: vMsg.key });
+            await sleep(1500);
+
+            // Try matching index number
+            let snapshot = await db.collection('prefects').where('school_index_number', '==', inputId).get();
+            if (!snapshot.empty) {
+                state.data = { id: snapshot.docs[0].id, ...snapshot.docs[0].data() };
+                state.step = 'REPORT_VERIFY';
+                const msg = `ආයුබෝවන්! දත්ත ගොනුවේ ඔබගේ වාර්තාව සොයාගත්තා. 🛡️\n\nකරුණාකර ඔබගේ අනන්‍යතාව තහවුරු කිරීම සඳහා පද්ධතියේ ලියාපදිංචි *Prefect ID* අංකය ටයිප් කර එවන්න.\n\n(මෙම ක්‍රියාවලිය අවලංගු කිරීමට 'EXIT' ලෙස යොමු කරන්න).\n\n> 𝓐𝓼𝓼𝓲𝓼𝓽𝓪𝓷𝓽 𝓞𝓵𝔂𝓪 💞🐝`;
+                return await hansaka.sendMessage(from, { text: msg }, { quoted: mek });
+            }
+        }
+
+        if (state.step === 'REPORT_VERIFY') {
+            if (body.trim() === state.data.id || body.trim().toLowerCase() === String(state.data.prefect_unique_id || '').trim().toLowerCase()) {
+                const monthsList = [];
+                let listMsg = `*A C C E S S  G R A N T E D !* 🛡️✅\n\nආයුබෝවන් *${state.data.name.split(' ')[0]}* !\nඔබගේ අනන්‍යතාව 100% ක් තහවුරුයි. 🎉\n\nකරුණාකර ඔබගේ මාසික වාර්තාව (PDF) මුද්‍රණය කිරීමට අදාළ මාසයට හිමි අංකය පහතින් තෝරන්න:\n\n╭───────────────────✨\n│ 📊 *E C C P M S  R E P O R T S*\n╰───────────────────✨\n\n`;
+                for (let i = 0; i < 4; i++) {
+                    let d = new Date(); d.setMonth(d.getMonth() - i);
+                    let mName = d.toLocaleString('en-US', { month: 'long', year: 'numeric' });
+                    monthsList.push(mName); listMsg += `  *${i + 1}️⃣* ➔ 📄 ${mName} වාර්තාව\n`;
+                }
+                state.temp.reportMonths = monthsList; 
+                state.step = 'REPORT_MONTH_SELECT';
+                return await hansaka.sendMessage(from, { text: listMsg + "\n_Reply with the respective number._\n\n> 𝓐𝓼𝓼𝓲𝓼𝓽𝓪𝓷𝓽 𝓞𝓵𝔂𝓪 💞🐝" }, { quoted: mek });
+            } else {
+                return await hansaka.sendMessage(from, { text: `⚠️ ඔබ ඇතුළත් කළ Prefect ID අංකය වැරදියි.\n\nකරුණාකර නිවැරදි අංකය යොමු කරන්න හෝ මෙය අවලංගු කිරීමට 'EXIT' ලෙස සටහන් කරන්න.\n\n> 𝓐𝓼𝓼𝓲𝓼𝓽𝓪𝓷𝓽 𝓞𝓵𝔂𝓪 💞🐝` }, { quoted: mek });
+            }
+        }
+
+        if (state.step === 'REPORT_MONTH_SELECT') {
+            const selectedInput = body.trim();
+            const validMonths = state.temp.reportMonths || [];
+            let selectedMonthStr = selectedInput;
+
+            if (/^[1-4]$/.test(selectedInput)) selectedMonthStr = validMonths[parseInt(selectedInput) - 1];
+
+            if (!validMonths.some(m => m.toLowerCase() === selectedMonthStr.toLowerCase())) {
+                return await hansaka.sendMessage(from, { text: `⚠️ ලබා දුන් අගය හඳුනාගත නොහැක. කරුණාකර නිවැරදි අංකයක් ලබා දෙන්න.` });
+            }
+
+            await hansaka.sendPresenceUpdate('composing', from);
+            let loadMsg = await hansaka.sendMessage(from, { text: "> 🔐 _Establishing Secure Data Tunnel..._" }, { quoted: mek });
+            
+            const pdfSteps = [
+                `> 📂 _Extracting Deep Data for ${selectedMonthStr}..._`,
+                `> 📊 _Processing Monthly KPIs & Analytics..._`,
+                `> ⚙️ _Compiling Merits & Demerits Algorithms..._`,
+                `> 📝 _Generating Official Document Layout..._`,
+                `> 🖋️ _Applying Digital Signatures & Encryption..._`,
+                `> 📤 _Finalizing PDF Output Protocol..._`,
+                `> ✅ _Document Ready! Sending via Olya Network..._`
+            ];
+            for (let step of pdfSteps) {
+                await sleep(2000);
+                await hansaka.sendMessage(from, { text: step, edit: loadMsg.key });
+            }
+
+            try {
+                const pId = state.data.id;
+                const targetDate = new Date(`${selectedMonthStr} 1`);
+                const cycleStart = new Date(targetDate.getFullYear(), targetDate.getMonth(), 1);
+                const cycleEnd = new Date(targetDate.getFullYear(), targetDate.getMonth() + 1, 0);
+                const prevCycleStart = new Date(targetDate.getFullYear(), targetDate.getMonth() - 1, 1);
+
+                const sStr = cycleStart.toISOString().split('T')[0];
+                const eStr = cycleEnd.toISOString().split('T')[0];
+                const prevStr = prevCycleStart.toISOString().split('T')[0];
+                const cycleString = `${cycleStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} - ${cycleEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+
+                const pointsSnap = await db.collection('points').where('prefect_id', '==', pId).get();
+                let pointsRecords = []; let currPointsTotal = 0; let prevPointsTotal = 0;
+                pointsSnap.forEach(doc => {
+                    const d = doc.data();
+                    if (d.date >= sStr && d.date <= eStr) { pointsRecords.push(d); currPointsTotal += (parseInt(d.points) || 0); }
+                    else if (d.date >= prevStr && d.date < sStr) { prevPointsTotal += (parseInt(d.points) || 0); }
+                });
+                pointsRecords.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+                const attSnap = await db.collection('attendance').where('prefect_id', '==', pId).get();
+                let attRecords = []; let currAttCount = 0; let prevAttCount = 0;
+                attSnap.forEach(doc => {
+                    const d = doc.data();
+                    const isPresent = (d.status || '').toLowerCase() === 'present' || (d.status || '').toLowerCase() === 'late';
+                    if (d.date >= sStr && d.date <= eStr) { attRecords.push(d); if (isPresent) currAttCount++; }
+                    else if (d.date >= prevStr && d.date < sStr) { if (isPresent) prevAttCount++; }
+                });
+                attRecords.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+                const totalPoints = state.data.total_points || 0;
+                let currentRank = "Rookie"; let nextTierMin = 50; let nextRankName = "Bronze";
+                if (totalPoints >= 120) { currentRank = "Platinum"; nextTierMin = 120; nextRankName = "Max Rank"; }
+                else if (totalPoints >= 90) { currentRank = "Gold"; nextTierMin = 120; nextRankName = "Platinum"; }
+                else if (totalPoints >= 80) { currentRank = "Silver"; nextTierMin = 90; nextRankName = "Gold"; }
+                else if (totalPoints >= 50) { currentRank = "Bronze"; nextTierMin = 80; nextRankName = "Silver"; }
+
+                const progressPercent = Math.min((totalPoints / nextTierMin) * 100, 100) || 0;
+
+                const doc = new PDFDocument({ size: 'A4', margin: 40 });
+                let buffers = []; doc.on('data', buffers.push.bind(buffers));
+
+                doc.on('end', async () => {
+                    let pdfData = Buffer.concat(buffers);
+                    const safeName = (state.data.name || 'Prefect').replace(/\s+/g, '_');
+                    const captionMsg = `ඔබගේ මාසික වාර්තාව සකස් කර අවසන්.\n\nනම: ${state.data.name}\nමාසය: ${selectedMonthStr}\n\n👩‍💼 Issued by Olya,\nPersonal Secretary to Mr. Hansaka P. Fernando.`;
+
+                    await hansaka.sendMessage(from, { delete: loadMsg.key });
+                    await hansaka.sendMessage(from, { document: pdfData, mimetype: 'application/pdf', fileName: `ECCPMS_${safeName}_${selectedMonthStr.replace(' ', '_')}.pdf`, caption: captionMsg }, { quoted: mek });
+                });
+
+                const maroon = [114, 14, 14];
+                const gold = [212, 175, 55];
+                const darkText = [30, 30, 30];
+                const lightText = [100, 100, 100];
+                const lineColor = [230, 230, 230];
+
+                const fullName = state.data.name || 'Prefect Member';
+                const firstName = fullName.split(" ")[0];
+                const lastName = fullName.split(" ").slice(1).join(" ");
+
+                doc.font('Helvetica-Bold').fontSize(32).fillColor(darkText).text(firstName.toUpperCase(), 0, 40, { align: 'center' });
+                doc.font('Helvetica').fontSize(16).text(lastName.toUpperCase(), 0, 75, { align: 'center' });
+                doc.font('Helvetica-Bold').fontSize(11).fillColor(maroon).text((state.data.destiny || state.data.current_duty || "MEMBER").toUpperCase(), 0, 95, { align: 'center' });
+                doc.font('Helvetica').fontSize(9).fillColor(lightText).text(`ID: ${state.data.school_index_number || '-'}`, 0, 110, { align: 'center' });
+
+                let rankColor = lightText;
+                if (currentRank === "Gold") rankColor = gold;
+                else if (currentRank === "Silver") rankColor = [169, 169, 169];
+                else if (currentRank === "Bronze") rankColor = [205, 127, 50];
+
+                doc.font('Helvetica-Bold').fillColor(rankColor).text(`Rank: ${currentRank}`, 0, 125, { align: 'center' });
+                doc.font('Helvetica').fillColor(lightText).text(`Period: ${cycleString}`, 0, 140, { align: 'center' });
+
+                // Load profile picture from Firebase 'picture' field
+                try {
+                    if (state.data.picture) {
+                        const imgRes = await axios.get(state.data.picture, { responseType: 'arraybuffer' });
+                        const imgBuffer = Buffer.from(imgRes.data);
+                        doc.save();
+                        doc.circle(80, 80, 45).clip();
+                        doc.image(imgBuffer, 35, 35, { width: 90, height: 90 });
+                        doc.restore();
+                    } else {
+                        doc.circle(80, 80, 45).fillColor(maroon).fill();
+                    }
+                } catch (imgErr) {
+                    console.error("Profile picture load error:", imgErr.message);
+                    doc.circle(80, 80, 45).fillColor(maroon).fill();
+                }
+                doc.font('Helvetica-Bold').fontSize(11).fillColor(darkText).text("SUMMARY", 380, 40, { align: 'right' });
+                doc.moveTo(430, 55).lineTo(550, 55).lineWidth(1).strokeColor(maroon).stroke();
+
+                doc.font('Helvetica').fontSize(8).fillColor(lightText);
+                const sumTxt = `Report Period: ${cycleString}.\nTotal Lifetime Points: ${totalPoints}.\nRank Status: Active.`;
+                doc.text(sumTxt, 380, 65, { align: 'right', width: 170 });
+                doc.text(`Next Rank: ${nextRankName} (${Math.round(progressPercent)}%)`, 380, 110, { align: 'right', width: 170 });
+                doc.roundedRect(400, 120, 150, 6, 3).fillColor(lineColor).fill();
+                doc.roundedRect(400, 120, (150 * progressPercent) / 100, 6, 3).fillColor(maroon).fill();
+
+                doc.moveTo(40, 170).lineTo(550, 170).lineWidth(1).strokeColor(lineColor).stroke();
+
+                let startY = 190;
+                doc.circle(50, startY + 4, 4).fillColor(maroon).fill();
+                doc.font('Helvetica-Bold').fontSize(12).fillColor(darkText).text(`ATTENDANCE (${currAttCount})`, 65, startY);
+                doc.moveTo(50, startY + 20).lineTo(50, 480).lineWidth(1).strokeColor(lineColor).stroke();
+
+                let currY = startY + 30;
+                const maxRows = 8;
+
+                let renderAtt = attRecords.slice(0, maxRows);
+                if (renderAtt.length === 0) doc.font('Helvetica').fontSize(9).fillColor(lightText).text("No records this period.", 65, currY);
+                renderAtt.forEach(rec => {
+                    const stat = (rec.status || 'N/A').toUpperCase();
+                    doc.circle(50, currY + 4, 3).fillColor(stat === 'ABSENT' ? 'red' : 'green').fill();
+                    doc.font('Helvetica-Bold').fontSize(9).fillColor(darkText).text(stat, 65, currY);
+                    doc.font('Helvetica').fontSize(8).fillColor(lightText).text(`${rec.date} | ${rec.reason || '-'}`, 65, currY + 12);
+                    currY += 30;
+                });
+
+                doc.circle(300, startY + 4, 4).fillColor(maroon).fill();
+                doc.font('Helvetica-Bold').fontSize(12).fillColor(darkText).text("POINTS HISTORY", 315, startY);
+                doc.moveTo(300, startY + 20).lineTo(300, 480).lineWidth(1).strokeColor(lineColor).stroke();
+
+                currY = startY + 30;
+                let renderPts = pointsRecords.slice(0, maxRows);
+                if (renderPts.length === 0) doc.font('Helvetica').fontSize(9).fillColor(lightText).text("No points changes.", 315, currY);
+                renderPts.forEach(rec => {
+                    const isPlus = (rec.points || 0) > 0;
+                    doc.circle(300, currY + 4, 3).fillColor(isPlus ? 'green' : 'red').fill();
+                    doc.font('Helvetica-Bold').fontSize(9).fillColor(isPlus ? [22, 101, 52] : [220, 38, 38]).text(`${isPlus ? '+' : ''}${rec.points} Points`, 315, currY);
+                    doc.font('Helvetica').fontSize(8).fillColor(lightText).text(rec.reason || 'System Update', 315, currY + 12);
+                    currY += 30;
+                });
+
+                doc.roundedRect(30, 750, 535, 60, 5).fillColor([245, 245, 245]).fill();
+                doc.moveTo(350, 770).lineTo(500, 770).lineWidth(1).strokeColor(darkText).stroke();
+                doc.font('Helvetica-Bold').fontSize(10).fillColor(darkText).text("AUTHORIZED SIGNATURE", 350, 780, { width: 150, align: 'center' });
+                doc.font('Helvetica').fontSize(8).fillColor(lightText).text("Generated by Olya - Private Assistant", 50, 780);
+
+                doc.end();
+                state.step = 'NORMAL'; state.temp = {};
+                return;
+
+            } catch (err) {
+                state.step = 'NORMAL';
+                return await hansaka.sendMessage(from, { text: `⚠️ වාර්තාව සැකසීමේදී දෝෂයක් ඇති විය.` });
+            }
+        }
+
+        // --- 7. OLYA'S AI BRAIN (GEMINI) FOR TEXT AND VOICE ---
+        
+        let customPrompt = OLYA_PERSONA;
+
+        // User Recognition Logic
+        if (isOwner) {
+            customPrompt += `\nThe person messaging is Hansaka, your boss. Assist him normally.`;
+        } else if (userProfile?.role === 'Special Someone') {
+            customPrompt += `\nThe person messaging is Rashmi, whom you must address strictly and respectfully as "චූටි මිස්" (Chuti Miss). Call your boss just "Hansaka". Tell her warmly that Hansaka has completely removed all her message limits because she is enormously special to him, and she can text him anytime. Treat her as royalty. Never say "හන්සක මහත්තයා" to her or anyone. If needed, offer to notify him immediately.`;
+        } else {
+            customPrompt += `\nThe person messaging is an unknown user. Ask them what they need.`;
+        }
+
+        const genAI = getRandomGeminiMode();
+        if (!genAI) throw new Error("No Gemini keys found.");
+        const geminiModel = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
+
+        const isAudio = mek.message?.audioMessage || mek.message?.pttMessage;
+        
+        if (isAudio) {
+            await hansaka.sendPresenceUpdate('recording', from);
+            const msgStatus = await hansaka.sendMessage(from, { text: "👩‍💼 _Olya is listening to your voice note..._" }, { quoted: mek });
+            
+            try {
+                const buffer = await downloadMediaMessage(mek, 'buffer', {}, { logger: console });
+                const base64Audio = buffer.toString('base64');
+                
+                const result = await geminiModel.generateContent([
+                    { inlineData: { data: base64Audio, mimeType: "audio/ogg" } },
+                    { text: customPrompt + "\nListen securely to the user's audio Voice Note. Answer their exact question briefly and naturally in pure Sinhala text." }
+                ]);
+                
+                let aiReplyText = result.response.text().trim();
+                const footerText = "\n\n> 𝓐𝓼𝓼𝓲𝓼𝓽𝓪𝓷𝓽 𝓞𝓵𝔂𝓪 💞🐝";
+                
+                // Text representation update
+                await hansaka.sendMessage(from, { text: aiReplyText + footerText, edit: msgStatus.key });
+                
+                // Return as Voice Note via Google TTS
+                try {
+                    const audioUrl = googleTTS.getAudioUrl(aiReplyText.substring(0, 200), { // limit safety check
+                        lang: 'si',
+                        slow: false,
+                        host: 'https://translate.google.com',
+                    });
+                    const audioRes = await axios.get(audioUrl, { responseType: 'arraybuffer' });
+                    await hansaka.sendMessage(from, { audio: Buffer.from(audioRes.data, 'binary'), mimetype: 'audio/mp4', ptt: true }, { quoted: mek });
+                } catch (ttsErr) {
+                    console.error("TTS Error:", ttsErr);
+                }
+            } catch (err) {
+                await hansaka.sendMessage(from, { text: "සමාවෙන්න, මට ඔබගේ හඬ පැහැදිලි නැත." + "\n\n> 𝓐𝓼𝓼𝓲𝓼𝓽𝓪𝓷𝓽 𝓞𝓵𝔂𝓪 💞🐝", edit: msgStatus.key });
+            }
+        } else if (body) {
+            await hansaka.sendPresenceUpdate('composing', from);
+            const msgStatus = await hansaka.sendMessage(from, { text: "👩‍💼 _Olya is typing..._" }, { quoted: mek });
+            
+            if (body.length > 400) {
+                customPrompt += `\nSummarize the core point in 1-2 sentences.`;
+            }
+            
+            try {
+                const result = await geminiModel.generateContent([
+                    customPrompt + "\nUser Input: " + body
+                ]);
+                let aiReplyText = result.response.text().trim();
+                const footerText = "\n\n> 𝓐𝓼𝓼𝓲𝓼𝓽𝓪𝓷𝓽 𝓞𝓵𝔂𝓪 💞🐝";
+                
+                await hansaka.sendMessage(from, { text: aiReplyText + footerText, edit: msgStatus.key });
+            } catch (err) {
+                console.error("\n❌ Gemini Text Gen Error:", err.message || err, "\n");
+                await hansaka.sendMessage(from, { text: "පද්ධති දෝෂයකි. කරුණාකර නැවත උත්සාහ කරන්න." + "\n\n> 𝓐𝓼𝓼𝓲𝓼𝓽𝓪𝓷𝓽 𝓞𝓵𝔂𝓪 💞🐝", edit: msgStatus.key });
+            }
+        }
+    } catch (e) {
+        console.error("Olya Assistant Error:", e.message);
+    }
+});m();
             
             let vMsg = await hansaka.sendMessage(from, { text: "> 🔍 _Olya System is Scanning Index..._" }, { quoted: mek });
             await sleep(2000);
