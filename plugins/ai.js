@@ -63,6 +63,20 @@ async (hansaka, mek, m, { from, body, isGroup, senderNumber }) => {
     try {
         if (isGroup) return; 
 
+        const generateOlyaDynamicMsg = async (promptMsg) => {
+            try {
+                const genAI = getRandomGeminiMode();
+                if (!genAI) return "පැහැදිලි නැත. කරුණාකර නැවත උත්සාහ කරන්න.";
+                const geminiModel = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
+                const baseContext = `You are Olya, the highly professional Personal Assistant to the CEO, Hansaka. You are speaking to Rashmi, his VIP partner. Do NOT sound robotic or artificial. Speak completely like a real, polite human assistant named Olya. Use natural, conversational Sinhala script. Keep it extremely brief. IMPORTANT: `;
+                const result = await geminiModel.generateContent([baseContext + promptMsg]);
+                return result.response.text().trim() + "\n\n> 𝓐𝓼𝓼𝓲𝓼𝓽𝓪𝓷𝓽 𝓞𝓵𝔂𝓪 💞🐝";
+            } catch (error) {
+                console.error("Dynamic AI Gen Error:", error.message);
+                return "පද්ධති දෝෂයකි. කරුණාකර නැවත උත්සාහ කරන්න.\n\n> 𝓐𝓼𝓼𝓲𝓼𝓽𝓪𝓷𝓽 𝓞𝓵𝔂𝓪 💞🐝";
+            }
+        };
+
         const isOwner = senderNumber === OWNER_NUMBER || mek.key.fromMe;
         const userProfile = VIP_DIRECTORY[senderNumber];
 
@@ -141,18 +155,14 @@ async (hansaka, mek, m, { from, body, isGroup, senderNumber }) => {
         // 6. FULL ECCPMS PDF GENERATION 
         // ========================================================
         if (state.step === 'NORMAL' && body && /(රිපෝට්|report|වාර්තාව|ප්‍රිෆෙක්ට්|මාසික|eccpms|monthly|prefect|pms|pdf)/i.test(body) && isNaN(body.trim())) {
-            const replyMsg = `*📋 ECCPMS | Prefect Management System*
-
-_ආයුබෝවන්! 👋_
-
-මේ වන විට මා විසින් PMS Data System එක වෙත පිවිසීමට අවශ්‍ය කටයුතු සූදානම් කරමිනුයි පවතින්නේ.
-
-ඔබගේ Monthly Performance Report (PDF) එක ලබා ගැනීම සඳහා, කරුණාකර ඔයාගේ Index Number (ඇතුලත් වීමේ අංකය) පමණක් මීළඟ message එකෙහි සටහන් කර එවන්න.
-
-(පද්ධතියේ පහසුව සඳහා වෙනත් කිසිදු වචනයක් භාවිතා නොකර අංකය පමණක් යොමු කිරීමට කාරුණික වන්න.)
-
-*📌 උදාහරණ: 27137*`;
-            return await hansaka.sendMessage(from, { text: replyMsg + "\n\n> 𝓐𝓼𝓼𝓲𝓼𝓽𝓪𝓷𝓽 𝓞𝓵𝔂𝓪 💞🐝" }, { quoted: mek });
+            await hansaka.sendPresenceUpdate('composing', from);
+            if (userProfile?.role === 'Special Someone') {
+                const aiReply = await generateOlyaDynamicMsg("Address her as 'චූටි මිස්'. Tell her naturally that Hansaka asked you to do her work first, and ask completely like a human assistant 'චූටි මිස්, මට ඔයාගේ ඉන්ඩෙක්ස් නම්බර් එක දෙනවද?', mentioning report generation. Do NOT use artificial words.");
+                return await hansaka.sendMessage(from, { text: aiReply }, { quoted: mek });
+            } else {
+                const aiReply = await generateOlyaDynamicMsg("A user is requesting their monthly PDF report. Act entirely like a highly professional corporate secretary. Naturally say something like 'ආයුබෝවන්! මම මාසික වාර්තාව ලබාගන්න පද්ධතියට සම්බන්ධ වෙන්නම්. කරුණාකර ඔබගේ ඇතුළත් වීමේ අංකය (Index Number) ලබාදෙන්න පුළුවන්ද?'. Keep it extremely polite, formal yet natural. DO NOT sound robotic or use formatting templates.");
+                return await hansaka.sendMessage(from, { text: aiReply }, { quoted: mek });
+            }
         }
 
         if (state.step === 'NORMAL' && !body.includes(' ') && body.trim().length >= 3 && body.trim().length <= 15 && !isNaN(body.trim())) {
@@ -173,15 +183,34 @@ _ආයුබෝවන්! 👋_
             if (!snapshot.empty) {
                 state.data = { id: snapshot.docs[0].id, ...snapshot.docs[0].data() };
                 state.step = 'REPORT_VERIFY';
-                const msg = `ආයුබෝවන්! දත්ත ගොනුවේ ඔබගේ වාර්තාව සොයාගත්තා. 🛡️\n\nකරුණාකර ඔබගේ අනන්‍යතාව තහවුරු කිරීම සඳහා පද්ධතියේ ලියාපදිංචි *Prefect ID* අංකය ටයිප් කර එවන්න.\n\n(මෙම ක්‍රියාවලිය අවලංගු කිරීමට 'EXIT' ලෙස යොමු කරන්න).\n\n> 𝓐𝓼𝓼𝓲𝓼𝓽𝓪𝓷𝓽 𝓞𝓵𝔂𝓪 💞🐝`;
-                return await hansaka.sendMessage(from, { text: msg }, { quoted: mek });
+                await hansaka.sendPresenceUpdate('composing', from);
+                if (userProfile?.role === 'Special Someone') {
+                    const aiReply = await generateOlyaDynamicMsg("You found the index. Now, ask COMPLETELY ACTING LIKE A HUMAN: 'මිස් මට ඔයාගේ Prefect ID එක ගන්න පුලුවන්ද?' Do NOT say 'චූටි මිස්'. Address her respectfully as 'මිස්'. Do not sound artificial at all.");
+                    return await hansaka.sendMessage(from, { text: aiReply }, { quoted: mek });
+                } else {
+                    const userName = state.data.name.split(' ')[0];
+                    const aiReply = await generateOlyaDynamicMsg(`You just found the record for user '${userName}'. Naturally act like a fully human, professional corporate secretary. Politely address them as '${userName}'. Say something like: 'බොහොම ස්තූතියි ${userName}! මම විස්තර පද්ධතියෙන් සොයාගත්තා. ආරක්ෂාව තහවුරු කිරීමට කරුණාකර ඔබගේ Prefect ID එක ලබාදෙන්න පුළුවන්ද?'. Keep it entirely natural. Do NOT output robotic terminology.`);
+                    return await hansaka.sendMessage(from, { text: aiReply }, { quoted: mek });
+                }
             }
         }
 
         if (state.step === 'REPORT_VERIFY') {
             if (body.trim() === state.data.id || body.trim().toLowerCase() === String(state.data.prefect_unique_id || '').trim().toLowerCase()) {
                 const monthsList = [];
-                let listMsg = `*A C C E S S  G R A N T E D !* 🛡️✅\n\nආයුබෝවන් *${state.data.name.split(' ')[0]}* !\nඔබගේ අනන්‍යතාව 100% ක් තහවුරුයි. 🎉\n\nකරුණාකර ඔබගේ මාසික වාර්තාව (PDF) මුද්‍රණය කිරීමට අදාළ මාසයට හිමි අංකය පහතින් තෝරන්න:\n\n╭───────────────────✨\n│ 📊 *E C C P M S  R E P O R T S*\n╰───────────────────✨\n\n`;
+                const userName = state.data.name.split(' ')[0];
+                let dynamicMenuHeader = "";
+                
+                await hansaka.sendPresenceUpdate('composing', from);
+                if (userProfile?.role === 'Special Someone') {
+                    dynamicMenuHeader = await generateOlyaDynamicMsg("Identity is verified. Now ask her completely naturally like a human PA: 'මිස් ඔක්කොම හරි! ඔයාට ඕනේ කොයි මාසෙ රිපෝට් එකද?' Do NOT use 'චූටි මිස්', just use 'මිස්'. Drop the trailing signature if possible.");
+                } else {
+                    dynamicMenuHeader = await generateOlyaDynamicMsg(`Their ID is verified correctly. Naturally act like a human corporate secretary. Address them politely using their name '${userName}'. Say something like: '${userName}, ඔබගේ අනන්‍යතාව තහවුරුයි! කරුණාකර ඔබට දැන් වාර්තාව අවශ්‍ය මාසය මෙතනින් තෝරන්න:'. Drop the trailing signature if possible.`);
+                }
+                
+                dynamicMenuHeader = dynamicMenuHeader.replace("\n\n> 𝓐𝓼𝓼𝓲𝓼𝓽𝓪𝓷𝓽 𝓞𝓵𝔂𝓪 💞🐝", "");
+                let listMsg = `${dynamicMenuHeader}\n\n╭───────────────────✨\n│ 📊 *E C C P M S  R E P O R T S*\n╰───────────────────✨\n\n`;
+                
                 for (let i = 0; i < 4; i++) {
                     let d = new Date(); d.setMonth(d.getMonth() - i);
                     let mName = d.toLocaleString('en-US', { month: 'long', year: 'numeric' });
@@ -269,10 +298,22 @@ _ආයුබෝවන්! 👋_
                 doc.on('end', async () => {
                     let pdfData = Buffer.concat(buffers);
                     const safeName = (state.data.name || 'Prefect').replace(/\s+/g, '_');
-                    const captionMsg = `ඔබගේ මාසික වාර්තාව සකස් කර අවසන්.\n\nනම: ${state.data.name}\nමාසය: ${selectedMonthStr}\n\n👩‍💼 Issued by Olya,\nPersonal Secretary to Mr. Hansaka P. Fernando.`;
+                    let captionMsg = "";
+                    if (userProfile?.role === 'Special Someone') {
+                        captionMsg = `*චූටි මිස් ගේ ඉල්ලීමට අනුව මාසික වාර්තාව සකස් කර අවසන්.*\n\n👩‍💼 මීට,\nOlya (Personal Assistant to Mr. Hansaka)`;
+                    } else {
+                        const userName = state.data.name.split(' ')[0];
+                        captionMsg = `මෙන්න ${userName} ඉල්ලුම් කළ මාසික වාර්තාව. ගැටළුවක් ඇත්නම් කරුණාකර මට දැනුම් දෙන්න.\n\n👩‍💼 මීට,\nOlya (Personal Assistant)`;
+                    }
 
                     await hansaka.sendMessage(from, { delete: loadMsg.key });
                     await hansaka.sendMessage(from, { document: pdfData, mimetype: 'application/pdf', fileName: `ECCPMS_${safeName}_${selectedMonthStr.replace(' ', '_')}.pdf`, caption: captionMsg }, { quoted: mek });
+                    
+                    if (userProfile?.role === 'Special Someone') {
+                        await hansaka.sendPresenceUpdate('composing', from);
+                        const pointsMsg = await generateOlyaDynamicMsg(`You just sent her the completed PDF report. Now, acting entirely like a polite human PA, send a very short, highly encouraging summary mentioning she currently has ${totalPoints} 'Total Points' (ලකුණු). Address her respectfully as 'චූටි මිස්'. Example: 'චූටි මිස්ට දැන් ඔක්කොම ලකුණු [X] ක් තියෙනවා, දිගටම මේ විදිහටම කරමු!'`);
+                        await hansaka.sendMessage(from, { text: pointsMsg }, { quoted: mek });
+                    }
                 });
 
                 const maroon = [114, 14, 14];
@@ -382,7 +423,7 @@ _ආයුබෝවන්! 👋_
         if (isOwner) {
             customPrompt += `\nThe person messaging is Hansaka, your boss. Assist him normally.`;
         } else if (userProfile?.role === 'Special Someone') {
-            customPrompt += `\nThe person messaging is Rashmi, whom you must address strictly and respectfully as "චූටි මිස්" (Chuti Miss). Call your boss just "Hansaka". Tell her warmly that Hansaka has completely removed all her message limits because she is enormously special to him, and she can text him anytime. Treat her as royalty. Never say "හන්සක මහත්තයා" to her or anyone. If needed, offer to notify him immediately.`;
+            customPrompt += `\nThe person messaging is Rashmi, the boss's VIP partner. You must address her highly professionally and respectfully as "චූටි මිස්" (Chooti Miss). IMPORTANT: Do not be overly affectionate or loving towards her; maintain the strict boundaries of an executive assistant while granting her top priority. You do not need to repeat "චූටි මිස්" constantly, but use it to show high respect. Answer her efficiently. Call your boss just "Hansaka" and never "හන්සක මහත්තයා". Offer to notify him immediately if she needs anything urgent. Treat her with utmost professional courtesy.`;
         } else {
             customPrompt += `\nThe person messaging is an unknown user. Ask them what they need.`;
         }
