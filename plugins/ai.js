@@ -298,7 +298,22 @@ _ආයුබෝවන්! 👋_
                 doc.font('Helvetica-Bold').fillColor(rankColor).text(`Rank: ${currentRank}`, 0, 125, { align: 'center' });
                 doc.font('Helvetica').fillColor(lightText).text(`Period: ${cycleString}`, 0, 140, { align: 'center' });
 
-                doc.circle(80, 80, 45).fillColor(maroon).fill();
+                // Load profile picture from Firebase 'picture' field
+                try {
+                    if (state.data.picture) {
+                        const imgRes = await axios.get(state.data.picture, { responseType: 'arraybuffer' });
+                        const imgBuffer = Buffer.from(imgRes.data);
+                        doc.save();
+                        doc.circle(80, 80, 45).clip();
+                        doc.image(imgBuffer, 35, 35, { width: 90, height: 90 });
+                        doc.restore();
+                    } else {
+                        doc.circle(80, 80, 45).fillColor(maroon).fill();
+                    }
+                } catch (imgErr) {
+                    console.error("Profile picture load error:", imgErr.message);
+                    doc.circle(80, 80, 45).fillColor(maroon).fill();
+                }
                 doc.font('Helvetica-Bold').fontSize(11).fillColor(darkText).text("SUMMARY", 380, 40, { align: 'right' });
                 doc.moveTo(430, 55).lineTo(550, 55).lineWidth(1).strokeColor(maroon).stroke();
 
